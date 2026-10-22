@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoCall Demo — Умный Автообзвон (Client-First Bridge)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 0.3; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .pulse-ring {
+      animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes wave {
+      0%, 100% { height: 6px; }
+      50% { height: 24px; }
+    }
+    .audio-bar:nth-child(1) { animation: wave 1s infinite 0.1s; }
+    .audio-bar:nth-child(2) { animation: wave 1s infinite 0.3s; }
+    .audio-bar:nth-child(3) { animation: wave 1s infinite 0.2s; }
+    .audio-bar:nth-child(4) { animation: wave 1s infinite 0.4s; }
+    .audio-bar:nth-child(5) { animation: wave 1s infinite 0.25s; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-indigo-500 selection:text-white">
+  <!-- Top Navigation -->
+  <header class="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white font-black text-xl">
+          📞
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold tracking-tight text-lg">AutoCall Engine</span>
+            <span id="providerBadge" class="text-[11px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              Demo Simulation
+            </span>
+          </div>
+          <p class="text-xs text-slate-400">Технология автообзвона с бесшовным соединением (Client-First Bridge)</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/60 text-xs">
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-slate-400">Ташкент:</span>
+          <span id="clock" class="font-mono font-semibold text-slate-200">--:--:--</span>
+        </div>
+        <button id="seedBtn" onclick="seedSampleData()" class="text-xs font-semibold px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition">
+          ↺ Сброс данных
+        </button>
+        <button id="runToggleBtn" onclick="toggleRun()" class="text-xs font-bold px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 transition flex items-center gap-2">
+          <span id="runBtnIcon">▶</span>
+          <span id="runBtnText">Запустить обзвон</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <!-- Architecture Banner: How It Works -->
+    <section class="bg-gradient-to-r from-indigo-950/40 via-slate-900 to-slate-900 border border-indigo-500/20 rounded-2xl p-5 sm:p-6 relative overflow-hidden">
+      <div class="absolute -right-12 -top-12 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div class="space-y-2 max-w-2xl">
+          <div class="inline-flex items-center gap-2 text-indigo-400 text-xs font-semibold uppercase tracking-wider">
+            <span>🛡️ Принцип 100% защиты от сбросов и потерь клиентов</span>
+          </div>
+          <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">
+            Client-First Manager Bridge: Как это работает?
+          </h2>
+          <p class="text-sm text-slate-400 leading-relaxed">
+            В отличие от спам-ботов, AutoCall сначала звонит клиенту, ожидает реального поднятия трубки и <strong>мгновенно соединяет с персональным менеджером</strong> (по внутреннему номеру ATS). Если закрепленный менеджер не на смене — звонок не начнется!
+          </p>
+        </div>
+
+        <!-- Workflow Visualizer steps -->
+        <div class="grid grid-cols-3 gap-2 sm:gap-3 text-center text-xs">
+          <div class="p-3 rounded-xl bg-slate-800/60 border border-slate-700/50 flex flex-col items-center">
+            <span class="text-lg mb-1">📱</span>
+            <span class="font-semibold text-slate-200">1. Набор клиента</span>
+            <span class="text-[11px] text-slate-400">Без участия оператора</span>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-800/60 border border-indigo-500/30 flex flex-col items-center relative">
+            <span class="text-lg mb-1">⚡</span>
+            <span class="font-semibold text-indigo-300">2. Ответ клиента</span>
+            <span class="text-[11px] text-indigo-400">Моментальный мост</span>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-800/60 border border-emerald-500/30 flex flex-col items-center">
+            <span class="text-lg mb-1">🎧</span>
+            <span class="font-semibold text-emerald-300">3. Звонок оператору</span>
+            <span class="text-[11px] text-emerald-400">Разговор 0 сек ожидания</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Key Metrics Cards -->
+    <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+      <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4">
+        <span class="text-xs font-medium text-slate-400">Всего лидов</span>
+        <div id="statTotal" class="text-2xl font-bold text-white mt-1">0</div>
+        <div class="text-[11px] text-slate-500 mt-0.5">В базе обзвона</div>
+      </div>
+      <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4">
+        <span class="text-xs font-medium text-indigo-400">В очереди</span>
+        <div id="statQueued" class="text-2xl font-bold text-indigo-400 mt-1">0</div>
+        <div class="text-[11px] text-slate-500 mt-0.5">Ожидают набора</div>
+      </div>
+      <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4">
+        <span class="text-xs font-medium text-amber-400">Идет вызов</span>
+        <div id="statCalling" class="text-2xl font-bold text-amber-400 mt-1">0</div>
+        <div class="text-[11px] text-slate-500 mt-0.5">Линия активна</div>
+      </div>
+      <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4">
+        <span class="text-xs font-medium text-emerald-400">Успешно соединены</span>
+        <div id="statConnected" class="text-2xl font-bold text-emerald-400 mt-1">0</div>
+        <div class="text-[11px] text-slate-500 mt-0.5">Разговор состоялся</div>
+      </div>
+      <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4">
+        <span class="text-xs font-medium text-rose-400">Недозвоны</span>
+        <div id="statFailed" class="text-2xl font-bold text-rose-400 mt-1">0</div>
+        <div class="text-[11px] text-slate-500 mt-0.5">Занято / Сброс</div>
+      </div>
+      <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4">
+        <span class="text-xs font-medium text-purple-400">В Telegram (РОП)</span>
+        <div id="statExhausted" class="text-2xl font-bold text-purple-400 mt-1">0</div>
+        <div class="text-[11px] text-slate-500 mt-0.5">&gt; 3 неудачных попыток</div>
+      </div>
+    </section>
+
+    <!-- Active Live Calls Live Visualizer (Real-time animations) -->
+    <section id="liveCallsSection" class="hidden">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <span class="relative flex h-3 w-3">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+          </span>
+          <h3 class="text-base font-bold text-white">Прямой эфир звонков (Active Bridge Sessions)</h3>
+        </div>
+      </div>
+      <div id="liveCallsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- Main Workspace Split: Left (Managers + Leads), Right (Live Logs + Settings) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <!-- Left Column: 7 cols -->
+      <div class="lg:col-span-7 space-y-6">
+        <!-- Managers on Shift section -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="font-bold text-white text-base">Менеджеры и рабочие смены</h3>
+              <p class="text-xs text-slate-400">Автообзвон соединяет клиента только тогда, когда его менеджер на смене</p>
+            </div>
+            <button onclick="openAddManagerModal()" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">
+              + Менеджер
+            </button>
+          </div>
+          <div id="managersList" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- Leads Queue Table -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="font-bold text-white text-base">База лидов для автообзвона</h3>
+              <p class="text-xs text-slate-400">Управляйте статусом, закрепленными менеджерами и ручным набором</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="openAddLeadModal()" class="text-xs px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium">
+                + Добавить лид
+              </button>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-950/60 text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th class="py-2.5 px-3">Клиент</th>
+                  <th class="py-2.5 px-3">Телефон</th>
+                  <th class="py-2.5 px-3">Ответственный</th>
+                  <th class="py-2.5 px-3">Статус</th>
+                  <th class="py-2.5 px-3">Попытки</th>
+                  <th class="py-2.5 px-3 text-right">Действие</th>
+                </tr>
+              </thead>
+              <tbody id="leadsTableBody" class="divide-y divide-slate-800/60">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: 5 cols -->
+      <div class="lg:col-span-5 space-y-6">
+        <!-- Settings Panel -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
+          <h3 class="font-bold text-white text-base mb-3">Параметры безопасности обзвона</h3>
+          <div class="space-y-3 text-xs">
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="font-semibold text-slate-300">Рабочее время:</span>
+                <span class="text-slate-400 block text-[11px]">Защита от ночных звонков</span>
+              </div>
+              <div class="flex items-center gap-1 font-mono">
+                <input id="setStart" type="text" value="09:00" class="w-14 bg-slate-800 border border-slate-700 rounded px-1.5 py-1 text-center text-slate-200">
+                <span class="text-slate-500">-</span>
+                <input id="setEnd" type="text" value="21:00" class="w-14 bg-slate-800 border border-slate-700 rounded px-1.5 py-1 text-center text-slate-200">
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="font-semibold text-slate-300">Строго соблюдать часы:</span>
+                <span class="text-slate-400 block text-[11px]">Отключить для теста прямо сейчас</span>
+              </div>
+              <input id="setEnforceHours" type="checkbox" class="w-4 h-4 accent-indigo-600 rounded">
+            </div>
+
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="font-semibold text-slate-300">Одновременных звонков (Slots):</span>
+                <span class="text-slate-400 block text-[11px]">Ограничение нагрузки на телефонию</span>
+              </div>
+              <input id="setMaxConcurrent" type="number" min="1" max="10" value="2" class="w-16 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-center font-mono">
+            </div>
+
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="font-semibold text-slate-300">Макс. попыток в день:</span>
+                <span class="text-slate-400 block text-[11px]">Далее перевод задачи в Telegram</span>
+              </div>
+              <input id="setMaxDaily" type="number" min="1" max="5" value="3" class="w-16 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-center font-mono">
+            </div>
+
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="font-semibold text-slate-300">Пауза между попытками:</span>
+                <span class="text-slate-400 block text-[11px]">Интервал перед повторным звонком</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <input id="setRetryMinutes" type="number" min="0" max="60" value="1" class="w-16 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-center font-mono">
+                <span class="text-slate-500 text-[11px]">мин</span>
+              </div>
+            </div>
+
+            <button onclick="saveSettings()" class="w-full mt-2 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold transition">
+              Сохранить параметры
+            </button>
+          </div>
+        </div>
+
+        <!-- Task / Escalations Box (Telegram Hand-off) -->
+        <div id="tasksBox" class="bg-slate-900/80 border border-purple-900/30 rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <span class="text-purple-400 text-sm">💬</span>
+              <h3 class="font-bold text-white text-base">Эскалация в Telegram</h3>
+            </div>
+            <span id="taskCountBadge" class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">0</span>
+          </div>
+          <p class="text-xs text-slate-400 mb-3">Лиды, до которых не удалось дозвониться после максимального числа попыток. Система передает задачу написать в мессенджер.</p>
+          <div id="tasksList" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+            <div class="text-xs text-slate-500 italic text-center py-2">Нет исчерпанных попыток</div>
+          </div>
+        </div>
+
+        <!-- Real-Time Activity Log -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-bold text-white text-base">Журнал событий в реальном времени</h3>
+            <span class="text-[10px] text-slate-500 font-mono">Live SSE</span>
+          </div>
+          <div id="logConsole" class="bg-slate-950 rounded-xl p-3 h-64 overflow-y-auto font-mono text-[11px] space-y-1.5 border border-slate-800/80">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Add Manager Modal -->
+  <div id="managerModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-6 space-y-4">
+      <h3 class="text-lg font-bold text-white">Добавить менеджера</h3>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1">Имя менеджера</label>
+          <input id="mgrName" type="text" placeholder="например, Шахзода" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1">Внутренний номер ATS (Extension)</label>
+          <input id="mgrExt" type="text" placeholder="например, 108" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono">
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button onclick="closeModal('managerModal')" class="px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white">Отмена</button>
+        <button onclick="submitAddManager()" class="px-4 py-1.5 rounded-lg text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">Добавить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Lead Modal -->
+  <div id="leadModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-6 space-y-4">
+      <h3 class="text-lg font-bold text-white">Добавить лид для автообзвона</h3>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1">Имя клиента</label>
+          <input id="leadName" type="text" placeholder="например, Рустам Ахмедов" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1">Телефон (с кодом страны)</label>
+          <input id="leadPhone" type="text" placeholder="998901234567" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono">
+          <p class="text-[10px] text-slate-500 mt-1">💡 В симуляции: окончания 00 (не берет), 99 (занято), 77 (сразу берет)</p>
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1">Закрепленный менеджер</label>
+          <select id="leadManagerSelect" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white">
+            <!-- options -->
+          </select>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button onclick="closeModal('leadModal')" class="px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white">Отмена</button>
+        <button onclick="submitAddLead()" class="px-4 py-1.5 rounded-lg text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">Добавить</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

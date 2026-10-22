@@ -1,0 +1,24 @@
+{
+  "name": "autocall-standalone",
+  "version": "1.0.0",
+  "description": "Standalone AutoCall Engine with Client-First Bridge & Real-Time Interactive Demo",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "keywords": [
+    "autocall",
+    "autodialer",
+    "telephony",
+    "onlinepbx",
+    "client-first-bridge"
+  ],
+  "author": "firda00",
+  "license": "MIT"
+}
